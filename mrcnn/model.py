@@ -772,7 +772,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     # Pad with zeros if detections < DETECTION_MAX_INSTANCES
     gap = config.DETECTION_MAX_INSTANCES - tf.shape(detections)[0]
     detections = tf.pad(detections, [(0, gap), (0, 0)], "CONSTANT")
-    return detections
+    return detections, keep
 
 
 class DetectionLayer(KE.Layer):
@@ -803,7 +803,7 @@ class DetectionLayer(KE.Layer):
         window = norm_boxes_graph(m['window'], image_shape[:2])
         
         # Run detection refinement graph on each item in the batch
-        detections_batch = utils.batch_slice(
+        detections_batch, keep_batch = utils.batch_slice(
             [rois, mrcnn_class, mrcnn_bbox, window],
             lambda x, y, w, z: refine_detections_graph(x, y, w, z, self.config),
             self.config.IMAGES_PER_GPU)
@@ -811,12 +811,14 @@ class DetectionLayer(KE.Layer):
         # Reshape output
         # [batch, num_detections, (y1, x1, y2, x2, class_score)] in
         # normalized coordinates
-        return tf.reshape(
+        return [tf.reshape(
             detections_batch,
-            [self.config.BATCH_SIZE, self.config.DETECTION_MAX_INSTANCES, 6])
+            [self.config.BATCH_SIZE, self.config.DETECTION_MAX_INSTANCES, 6]), tf.reshape(
+            keep_batch,
+            [self.config.BATCH_SIZE, 1000])]
 
     def compute_output_shape(self, input_shape):
-        return (None, self.config.DETECTION_MAX_INSTANCES, 6)
+        return [(None, self.config.DETECTION_MAX_INSTANCES, 6), (None, 1000)]
 
 
 ############################################################
@@ -2020,7 +2022,7 @@ class MaskRCNN():
             # Detections
             # output is [batch, num_detections, (y1, x1, y2, x2, class_id, score)] in 
             # normalized coordinates
-            detections = DetectionLayer(config, name="mrcnn_detection")(
+            detections, keep = DetectionLayer(config, name="mrcnn_detection")(
                 [rpn_rois, mrcnn_class, mrcnn_bbox, input_image_meta])
 
             # Create masks for detections
@@ -2033,7 +2035,7 @@ class MaskRCNN():
 
             model = KM.Model([input_image, input_image_meta, input_anchors],
                              [detections, mrcnn_class, mrcnn_bbox,
-                                 mrcnn_mask, rpn_rois, rpn_class, rpn_bbox, shared],
+                                 mrcnn_mask, rpn_rois, rpn_class, rpn_bbox, shared, keep],
                              name='mask_rcnn')
 
         # Add multi-GPU support.
@@ -2474,7 +2476,7 @@ class MaskRCNN():
             log("image_metas", image_metas)
             log("anchors", anchors)
         # Run object detection
-        detections, _, _, mrcnn_mask, _, _, _, shared =\
+        detections, _, _, mrcnn_mask, _, _, _, shared, keep =\
             self.keras_model.predict([molded_images, image_metas, anchors], verbose=0)
         # Process detections
         results = []
@@ -2489,6 +2491,7 @@ class MaskRCNN():
                 "scores": final_scores,
                 "masks": final_masks,
                 "shared": shared,
+                "keep": keep,
             })
         return results
 
