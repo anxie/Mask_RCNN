@@ -42,7 +42,6 @@ for name, image in zip(file_names, images):
 	results = model.detect([image], verbose=1)
 	r = results[0]
 	regions = r['shared'][0]
-	best_region = regions[np.argmax(np.asarray([np.linalg.norm(x) for x in regions]))]
-	features[name] = best_region
+	features[name] = regions
 
 pickle.dump(features, open(IMAGE_DIR + 'features.pkl'), protocol=2)
