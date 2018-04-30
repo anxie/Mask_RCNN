@@ -44,4 +44,4 @@ for name, image in zip(file_names, images):
 	regions = r['shared'][0]
 	features[name] = regions
 
-pickle.dump(features, open(IMAGE_DIR + 'features.pkl'), protocol=2)
+pickle.dump(features, open(IMAGE_DIR + 'features.pkl', 'wb'), protocol=2)
