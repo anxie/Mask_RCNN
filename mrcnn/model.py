@@ -815,10 +815,10 @@ class DetectionLayer(KE.Layer):
             detections_batch,
             [self.config.BATCH_SIZE, self.config.DETECTION_MAX_INSTANCES, 6]), tf.reshape(
             keep_batch,
-            [self.config.BATCH_SIZE, 1000])]
+            [self.config.BATCH_SIZE, -1])]
 
     def compute_output_shape(self, input_shape):
-        return [(None, self.config.DETECTION_MAX_INSTANCES, 6), (None, 1000)]
+        return [(None, self.config.DETECTION_MAX_INSTANCES, 6), (None, 1)]
 
 
 ############################################################

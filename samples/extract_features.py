@@ -15,7 +15,7 @@ import pickle
 
 MODEL_DIR = os.path.join(ROOT_DIR, "logs")
 COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
-IMAGE_DIR = "/Users/anniexie/CS280_Project/images/"
+IMAGE_DIR = "/home/annie/Downloads/images/"
 
 class InferenceConfig(coco.CocoConfig):
     # Set batch size to 1 since we'll be running inference on
@@ -42,6 +42,7 @@ for name, image in zip(file_names, images):
 	results = model.detect([image], verbose=1)
 	r = results[0]
 	regions = r['shared'][0]
-	features[name] = regions
+	keep = r['keep'][0]
+	features[name] = (regions, keep)
 
 pickle.dump(features, open(IMAGE_DIR + 'features.pkl', 'wb'), protocol=2)
